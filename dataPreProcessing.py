@@ -83,28 +83,6 @@ class PreProcessFiles():
         pass
 
 
-
-def getCasing(word, caseLookup):
-        casing = 'other'
-
-        numDigits = 0
-        for char in word:
-            if char.isdigit():
-                numDigits += 1
-
-        digitFraction = numDigits / float(len(word))
-
-        if word.isdigit():  # Is a digit
-            casing = 'numeric'
-        elif digitFraction > 0.5:
-            casing = 'mainly_numeric'
-        elif word.islower():  # All lower case
-            casing = 'allLower'
-        elif word.isupper():  # All upper case
-            casing = 'allUpper'
-        elif word[0].isupper():  # is a title, initial char upper, then all lower
-            casing = 'initialUpper'
-        elif numDigits > 0:
-            casing = 'contains_digit'
-
-        return caseLookup[casing]
+class PreProcessData():
+    def __init__(self, path):
+        self.file_path = path
