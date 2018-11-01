@@ -14,8 +14,11 @@ class PreProcessFiles():
         # returns array
         sentences = []
         for file_name in self.files_txt:
+            fle = []
             f = open(file_name)
-            sentences.append([line for line in f])
+            for line in f:
+                fle.append(line)
+            sentences.append(''.join(fle))
         return sentences
 
     def process_text_file(self, file_name):
@@ -46,17 +49,17 @@ class PreProcessFiles():
                     event_type = parts[1][6:-1]
                     modality = parts[2][10:-1]
                     polarity = parts[3][10:-1]
-                    sec_time_rel = parts[4][14:-1]
+                    # sec_time_rel = parts[4][14:-1]
                     event_text = event_text.strip()
                     event_text = event_text.split(' ')
                     i = 0
                     for line in range(event_start_line, event_end_line + 1):
                         for pos in range(event_start_token, event_end_token + 1):
                             # print([event_text[i], pos, line, event_type, modality, polarity, sec_time_rel])
-                            data_per_file.append([event_text[i], pos, line, event_type, modality, polarity, sec_time_rel])
+                            data_per_file.append([event_text[i], pos, line, event_type, modality, polarity])
                             i += 1
             df_extent = pd.DataFrame(data_per_file)
-            df_extent.columns = ['text', 'position', 'line_num', 'event_type', 'modality', 'polarity', 'sec_time_rel']
+            df_extent.columns = ['text', 'position', 'line_num', 'event_type', 'modality', 'polarity']
             return pd.DataFrame(df_extent)
 
     def get_merged_events(self):
@@ -78,3 +81,30 @@ class PreProcessFiles():
     def get_merged_time_events(self):
         # returns dataframe
         pass
+
+
+
+def getCasing(word, caseLookup):
+        casing = 'other'
+
+        numDigits = 0
+        for char in word:
+            if char.isdigit():
+                numDigits += 1
+
+        digitFraction = numDigits / float(len(word))
+
+        if word.isdigit():  # Is a digit
+            casing = 'numeric'
+        elif digitFraction > 0.5:
+            casing = 'mainly_numeric'
+        elif word.islower():  # All lower case
+            casing = 'allLower'
+        elif word.isupper():  # All upper case
+            casing = 'allUpper'
+        elif word[0].isupper():  # is a title, initial char upper, then all lower
+            casing = 'initialUpper'
+        elif numDigits > 0:
+            casing = 'contains_digit'
+
+        return caseLookup[casing]
