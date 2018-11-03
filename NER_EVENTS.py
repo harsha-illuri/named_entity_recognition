@@ -1,103 +1,163 @@
-import pandas as pd
+
+# coding: utf-8
+
+# In[1]:
+
+
+# imports
+from dataPreProcessing import get_tagged_sentences,    get_labels_words,    addCharInformatioin, create_word_index,createMatrices,    padding, defineBatches, fetch_minibatch
+from keras_contrib.layers import CRF
 import numpy as np
-import os
-
-import gensim
-from gensim.models import Word2Vec
-
-# get data
-
-def clean_ner(row):
-    try:
-        return row.lower()
-    except AttributeError:
-        return "None"
-
-def ceate_map_categories(categories, vals):
-    d = {}
-    categories.sort()
-    for i,v in enumerate(categories):
-        d[v] = i
-    return [d[v] for v in vals]
-
-from dataPreProcessing import PreProcessFiles
-from keras.preprocessing.text import Tokenizer
-from keras.utils import to_categorical
-from keras.models import Sequential
-from keras.layers import Input, Embedding, LSTM, Dense, TimeDistributed, Reshape, Bidirectional, concatenate, Flatten
-from keras.layers import Dense, Dropout, Activation
-from keras.preprocessing.sequence import pad_sequences
-from keras.layers import Bidirectional, GlobalMaxPool1D
 from keras.models import Model
-test = PreProcessFiles('data')
-data = test.get_merged_events()
-data = data[:1000].copy()
-data['event_type'] = data['event_type'].apply(clean_ner)
-sentences = test.get_sentences()
-
-max_words = 100
-# tokenizer
-tokenizer = Tokenizer(num_words= max_words, lower=False)
-tokenizer.fit_on_texts(sentences)
-X_words = tokenizer.texts_to_matrix(data['text_x'].values, mode='count')
-
-num_categories = len(set(data['event_type'].values))
-categories = list(set(data['event_type'].values))
-
-Y = ceate_map_categories(categories, data['event_type'].values)
-Y = to_categorical(Y, num_categories)
-
-print(len(Y))
-print(len(Y[0]))
-
-X_words = X_words.reshape(1, len(X_words), 1)
-Y = X_words.reshape(1, len(Y), 1)
-model = Sequential()
-model.add(Bidirectional(LSTM(20, return_sequences=True), input_shape=(len(X_words), 1)))
-model.add(TimeDistributed(Dense(num_categories, activation='softmax')))
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
-
-#
-# X_words = X_words.reshape(len(X_words),max_words, 1)
-# model = Sequential()
-# model.add(LSTM(20, input_shape=(max_words,1)))
-# model.add(Dense(num_categories, activation='softmax'))
-# model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-# model = Sequential()
-# model.add(Dense(512, input_shape=(1000,)))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.5))
-# model.add(Dense(num_categories))
-# model.add(Activation('softmax'))
-#
-# model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-# print(model.metrics_names)
-#
-batch_size = 16
-epochs = 10
-
-history = model.fit(X_words, Y, batch_size=batch_size, epochs=epochs, verbose=1, validation_split=0.2)
+from keras.layers import TimeDistributed,Conv1D,Dense,Embedding,Input,Dropout,LSTM,Bidirectional,MaxPooling1D,Flatten,concatenate
+from keras.utils import Progbar
+from keras.preprocessing.sequence import pad_sequences
+from keras.initializers import RandomUniform
+import os
+import matplotlib.pyplot as plt
 
 
+# In[2]:
 
-# sentences = [gensim.utils.simple_preprocess(line) for line in sentences]
-# model = Word2Vec(sentences, size=150, window=10, min_count=2, workers=10)
-# model.train(sentences, total_examples=len(sentences), epochs=10)
-#
-#
-# words = list(model.wv.vocab)
-# print(words)
-#
-# w = 'pregnancy'
-# print(model.wv.most_similar(positive = w, topn=10))
 
-def load_data(d, word_tokenizer=None, ner_tokenizer=None, char_tokenizer=None):
-    sents = data['text'].values
-    ner = data['event_type'].values
+# load and pre process the data
+train_sentences = get_tagged_sentences('data')
+train_sentences = addCharInformatioin(train_sentences)
+labels, words = get_labels_words(train_sentences)
 
-    chars = pprc.split_words(sents, padding=True, pad_len=max_word)
-    tokenized_words, word_tokenizer = pprc.tokenize(sents, t=word_tokenizer)
-    one_hot_ner, ner_tokenizer = pprc.one_hot_encode(ner, t=ner_tokenizer)
-    tokenized_chars, char_tokenizer = pprc.tokenize_chars(chars)
-    return (tokenized_words, word_tokenizer), (one_hot_ner, ner_tokenizer), (tokenized_chars, char_tokenizer)
+
+# create a dict to map the classes to numbers
+label_map = {}
+for label in labels:
+    label_map[label] = len(label_map)
+
+
+# Hard coded charecter lookup
+char_map = {"PADDING":0, "UNKNOWN":1}
+for c in " 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-_()[]{}!?:;#'\"/\\%$`&=*+@^~|":
+    char_map[c] = len(char_map)
+
+
+# create a word to index map
+word_map = create_word_index('data')
+word_map['UNKNOWN_TOKEN'] = len(word_map)
+word_map['PADDING_TOKEN'] = len(word_map)
+
+# get the training set ready
+train_set = padding(createMatrices(train_sentences,word_map,label_map, char_map))
+
+# define batches
+train_batches,train_batch_indices = defineBatches(train_set)
+
+
+# In[4]:
+
+
+# main model
+
+# word embedding
+words_input = Input(shape=(None,),dtype='int32',name='words_input')
+words = Embedding(input_dim=len(word_map), output_dim=100)(words_input)
+
+
+# charecter embedding
+character_input=Input(shape=(None,52,),name='char_input')
+embed_char_out=TimeDistributed(Embedding(len(char_map),120,embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)), name='char_embedding')(character_input)
+dropout= Dropout(0.3)(embed_char_out)
+conv1d_out= TimeDistributed(Conv1D(kernel_size=3, filters=30, padding='same',activation='tanh', strides=1))(dropout)
+maxpool_out=TimeDistributed(MaxPooling1D(52))(conv1d_out)
+char = TimeDistributed(Flatten())(maxpool_out)
+char = Dropout(0.3)(char)
+
+# main model
+output = concatenate([words, char])
+output = Bidirectional(LSTM(10, return_sequences=True, dropout=0.50, recurrent_dropout=0.25))(output)
+output = TimeDistributed(Dense(len(label_map), activation='softmax'))(output)
+    
+model = Model(inputs=[words_input,character_input], outputs=[output])
+model.compile(loss='sparse_categorical_crossentropy', optimizer='nadam')
+model.summary()
+
+
+# In[5]:
+
+
+# load dev set
+dev_sentences = get_tagged_sentences('dev')
+dev_sentences = addCharInformatioin(dev_sentences)
+dev_set = padding(createMatrices(dev_sentences,word_map,  label_map, char_map))
+
+
+# In[6]:
+
+
+def get_predictions(model):
+    pred_labels = []
+    orig_labels = []
+    for i,data in enumerate(dev_set):
+            tokens,char, labels = data
+            tokens = np.asarray([tokens])
+            char = np.asarray([char])
+            pred = model.predict([tokens, char])[0]
+            pred = pred.argmax(axis=-1)
+            pred_labels.append(pred)
+            orig_labels.append(labels)
+    return(get_accuracy(pred_labels, orig_labels))
+
+def get_accuracy(pred_labels, orig_labels):
+    # calculate accuray of dev set
+    label_pred = []
+    for sentence in pred_labels:
+        for word in sentence:
+            label_pred.append(word)
+
+    label_correct = []
+    for sentence in orig_labels:
+        for word in sentence:
+            label_correct.append(word)
+
+    corerct = 0
+    for i in range(len(label_correct)):
+        if label_pred[i] == label_correct[i]:
+            corerct +=1
+    return (corerct/len(label_correct))
+
+
+# In[7]:
+
+
+# train model
+epochs =50
+accs = []
+for epoch in range(epochs):
+    print("Epoch %d/%d"%(epoch,epochs))
+    a = Progbar(len(train_batch_indices))
+    for i,batch in enumerate(fetch_minibatch(train_batches,train_batch_indices)):
+        labels, tokens, char = batch
+        model.train_on_batch([tokens, char], labels)
+        a.update(i)
+    acc = get_predictions(model)
+    print (acc)
+    accs.append(acc)
+
+
+# In[8]:
+
+
+X= [i for i in range(50)]
+plt.plot(X, accs)
+plt.show()
+
+
+# In[12]:
+
+
+model.save('ner_events.h5')
+
+
+# In[ ]:
+
+
+from keras.utils.vis_utils import plot_model
+plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
+
