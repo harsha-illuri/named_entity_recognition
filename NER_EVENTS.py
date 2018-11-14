@@ -78,17 +78,10 @@ model = Model(inputs=[words_input,character_input], outputs=[output])
 model.compile(loss='sparse_categorical_crossentropy', optimizer='nadam')
 model.summary()
 
-
-# In[5]:
-
-
 # load dev set
 dev_sentences = get_tagged_sentences('dev')
 dev_sentences = addCharInformatioin(dev_sentences)
 dev_set = padding(createMatrices(dev_sentences,word_map,  label_map, char_map))
-
-
-# In[6]:
 
 
 def get_predictions(model):
@@ -123,11 +116,8 @@ def get_accuracy(pred_labels, orig_labels):
     return (corerct/len(label_correct))
 
 
-# In[7]:
-
-
 # train model
-epochs =50
+epochs =100
 accs = []
 for epoch in range(epochs):
     print("Epoch %d/%d"%(epoch,epochs))
@@ -141,23 +131,16 @@ for epoch in range(epochs):
     accs.append(acc)
 
 
-# In[8]:
-
 
 X= [i for i in range(50)]
 plt.plot(X, accs)
 plt.show()
 
 
-# In[12]:
+
+# model.save('ner_events.h5')
 
 
-model.save('ner_events.h5')
-
-
-# In[ ]:
-
-
-from keras.utils.vis_utils import plot_model
-plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
-
+# from keras.utils.vis_utils import plot_model
+# plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
+#
