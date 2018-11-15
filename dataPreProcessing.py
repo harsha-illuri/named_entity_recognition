@@ -20,6 +20,29 @@ def fetch_minibatch(dataset,batch_indices):
             labels.append(l)
         yield np.asarray(labels),np.asarray(tokens),np.asarray(char)
 
+def get_accuracy(pred_labels, orig_labels):
+    # calculate accuray of dev set
+    label_pred = []
+    for sentence in pred_labels:
+        for word in sentence:
+            label_pred.append(word)
+
+    label_correct = []
+    for sentence in orig_labels:
+        sentence = [s[0] for s in sentence]
+        for word in sentence:
+            label_correct.append(word)
+    # print(len(pred_labels), len(orig_labels))
+    # print(len(label_pred), len(label_correct))
+    corerct = 0
+    temp = 0
+    for i in range(len(label_correct)):
+        if label_pred[i] == label_correct[i]:
+            corerct +=1
+            if label_pred[i] == 0 and label_correct[i] == 0:
+                temp +=1
+    return (corerct/len(label_pred), (corerct-temp)/(len(label_pred)-temp))
+
 def defineBatches(data):
     # since the sentences are of multiple sizes, instead of padding
     # train on batches of data with same length
@@ -42,10 +65,25 @@ def defineBatches(data):
 
 def padding(Sentences):
     # add padding to char vectors
-    maxlen = 52
+    word_len = 20
+    sentence_len = 25
+    # print(Sentences[0])
     for i,sentence in enumerate(Sentences):
-        Sentences[i][1] = pad_sequences(Sentences[i][1],maxlen,padding='post')
-    return Sentences
+        Sentences[i][1] = pad_sequences(Sentences[i][1],word_len,padding='post')
+    tokens = []
+    labels = []
+    char = []
+    for sent in Sentences:
+        tokens.append(sent[0])
+        char.append(sent[1])
+        l = sent[2]
+        l = np.expand_dims(l, -1)
+        labels.append(l)
+    # return tokens, char, labels
+    tokens = pad_sequences(tokens,sentence_len,padding='post')
+    char = pad_sequences(char,sentence_len,padding='post')
+    labels = pad_sequences(labels,sentence_len,padding='post')
+    return np.asarray(tokens), np.asarray(char), np.asarray(labels)
 
 
 def createMatrices(sentences, word_map, label_map, char2Idx):
