@@ -20,28 +20,7 @@ def fetch_minibatch(dataset,batch_indices):
             labels.append(l)
         yield np.asarray(labels),np.asarray(tokens),np.asarray(char)
 
-def get_accuracy(pred_labels, orig_labels):
-    # calculate accuray of dev set
-    label_pred = []
-    for sentence in pred_labels:
-        for word in sentence:
-            label_pred.append(word)
 
-    label_correct = []
-    for sentence in orig_labels:
-        sentence = [s[0] for s in sentence]
-        for word in sentence:
-            label_correct.append(word)
-    # print(len(pred_labels), len(orig_labels))
-    # print(len(label_pred), len(label_correct))
-    corerct = 0
-    temp = 0
-    for i in range(len(label_correct)):
-        if label_pred[i] == label_correct[i]:
-            corerct +=1
-            if label_pred[i] == 0 and label_correct[i] == 0:
-                temp +=1
-    return (corerct/len(label_pred), (corerct-temp)/(len(label_pred)-temp))
 
 def defineBatches(data):
     # since the sentences are of multiple sizes, instead of padding
@@ -145,19 +124,64 @@ def addCharInformatioin(Sentences):
             Sentences[i][j] = [data[0],chars,data[1]]
     return Sentences
 
+# def get_tagged_sentences(file_path):
+#     class_obj = PreProcessFiles(file_path)
+#     data = class_obj.get_merged_events()
+#     data.fillna('none', inplace=True)
+#     data['text_x'] = data['text_x'].str.lower()
+#     grouped = data.groupby(['file_name_x', 'line_num'])
+#     sentences = []
+#     for name, group in grouped:
+#         sentence = []
+#         for row, d in group.iterrows():
+#             sentence.append([d['text_x'], d['event_type']])
+#         sentences.append(sentence)
+#     return sentences
+
 def get_tagged_sentences(file_path):
     class_obj = PreProcessFiles(file_path)
     data = class_obj.get_merged_events()
     data.fillna('none', inplace=True)
-    data['text_x'] = data['text_x'].str.lower()
-    grouped = data.groupby(['file_name_x', 'line_num'])
-    sentences = []
-    for name, group in grouped:
-        sentence = []
-        for row, d in group.iterrows():
-            sentence.append([d['text_x'], d['event_type']])
-        sentences.append(sentence)
-    return sentences
+    try:
+        data['text_x'] = data['text_x'].str.lower()
+        grouped = data.groupby(['file_name_x', 'line_num'])
+        sentences = []
+        for name, group in grouped:
+            sentence = []
+            prev_tag = 'O'
+            for row, d in group.iterrows():
+                event_type = d['event_type']
+                if event_type == '':
+                    event_type = 'none'
+                if event_type != 'none' and prev_tag == 'O': # beging
+                    event_type = 'B-'+event_type
+                    prev_tag = "B"
+                elif event_type != 'none' and (prev_tag == 'B' or prev_tag == 'I'):
+                    event_type = 'I-'+event_type
+                    prev_tag = "I"
+                else:
+                    prev_tag = "O"
+
+                if event_type == 'I-':
+                    print (sentence)
+
+                sentence.append([d['text_x'], event_type])
+            # print sentence
+            sentences.append(sentence)
+        return sentences
+    except KeyError:
+        data['text'] = data['text'].str.lower()
+        grouped = data.groupby(['file_name', 'line_num'])
+        sentences = []
+        for name, group in grouped:
+            sentence = []
+            for row, d in group.iterrows():
+                event_type = 'none'
+                sentence.append([d['text'], event_type])
+            sentences.append(sentence)
+        return sentences
+
+
 
 class PreProcessFiles():
     def __init__(self, path):
@@ -230,11 +254,19 @@ class PreProcessFiles():
 
     def get_merged_events(self):
         dfs = []
-        for i in range(len(self.files_extent)):
-            extent = self.files_extent[i]
-            txt = extent[:extent.rfind(".extent")]+".txt"
-            df = pd.merge(self.process_text_file(txt), self.process_events_extent_file(extent), on=['position', 'line_num'], how = 'left')
-            dfs.append(df)
-        res = pd.concat(dfs, ignore_index=True)
+        if self.files_extent:
+            for i in range(len(self.files_extent)):
+                extent = self.files_extent[i]
+                txt = extent[:extent.rfind(".extent")]+".txt"
+                df = pd.merge(self.process_text_file(txt), self.process_events_extent_file(extent), on=['position', 'line_num'], how = 'left')
+                dfs.append(df)
+            res = pd.concat(dfs, ignore_index=True)
+        else:
+            for i in range(len(self.files_txt)):
+                txt = self.files_txt[i]
+                df = self.process_text_file(txt)
+                dfs.append(df)
+            res = pd.concat(dfs, ignore_index=True)
+
         return res
 
