@@ -20,9 +20,65 @@ import os
 from shutil import copyfile, rmtree
 text_files = os.listdir('test/txt')
 text_files = [f for f in text_files if '.txt' in f]
+model = load_model('ner_events_100.h5')
 
+def genfile():
+    sentences = get_tagged_sentences('test/temp')
+    dev_sentences = addCharInformatioin(sentences)
+    dev_tokens, dev_char, dev_labels = padding(createMatrices(dev_sentences, word_map, label_map, char_map))
+    pred_labels = model.predict([dev_tokens, dev_char])
+    pred_labels = pred_labels.argmax(axis=-1)
+    event_id = 0
+    start_pos = 1
+    for i in range(len(sentences)):
+        l = min(100, len(sentences[i]))
+        sent = sentences[i]
+        pred = pred_labels[i][:l]
+        sent_start_pos = start_pos
+        i = 0
+        while i < l:
+            # print("sent_start_pos", sent_start_pos)
+            # print(sent[i][0])
+            # for each token
+            if pred[i] != 10:
+                attrib = {'id': 'E0', 'start': '1', 'end': '10', 'text': 'Admission', 'modality': 'FACTUAL',
+                          'polarity': 'POS', 'type': 'OCCURRENCE'}
+                attrib['start'] = str(sent_start_pos)
+                attrib['text'] = sent[i][0]
+                j = i + 1
+                # print(i, j)
+                # print(pred[i])
+                # print(inv_map[pred[i]])
+                while j < l and inv_map[pred[i]] == inv_map[pred[j]]:
+                    attrib['text'] += " " + sent[j][0]
+                    sent_start_pos += len(sent[j][0]) + 1
+                    j += 1
+                sent_start_pos += len(sent[i][0]) + 1
+                attrib['end'] = str(sent_start_pos)
 
+                attrib['id'] = "E" + str(event_id)
+                event_id += 1
+                attrib['type'] = inv_map[pred[i]]
+                i = j - 1
+                t = "<EVENT "
+                for k, v in attrib.items():
+                    t += k + "=" + "\"" + v + "\"" + " "
+                t += "/>"
+                out.write(t + "\n")
 
+            else:
+                sent_start_pos += len(sent[i][0]) + 1
+            i += 1
+            # print("end sent_start_pos", sent_start_pos)
+
+        while (i < len(sent)):
+            sent_start_pos += len(sent[i][0]) + 1
+            i += 1
+        start_pos = sent_start_pos
+    out.write("""</TAGS>\n</ClinicalNarrativeTemporalAnnotation>""")
+import gc
+import multiprocessing
+import time
 
 for i in range(len(text_files)):
     try:
@@ -35,69 +91,5 @@ for i in range(len(text_files)):
     out.write("""<?xml version="1.0" encoding="UTF-8" ?>\n
 <ClinicalNarrativeTemporalAnnotation>\n
 <TEXT></TEXT>\n<TAGS>\n""")
-
-
-
-    sentences = get_tagged_sentences('test/temp')
-    dev_sentences = addCharInformatioin(sentences)
-    dev_tokens, dev_char, dev_labels = padding(createMatrices(dev_sentences, word_map,  label_map, char_map))
-    model = load_model('ner_events_20.h5')
-    pred_labels = model.predict([dev_tokens, dev_char])
-    pred_labels = pred_labels.argmax(axis=-1)
-    event_id = 0
-    start_pos = 1
-    for i in range(len(sentences)):
-        # print("start_pos" , start_pos)
-        # for each line
-        l = min(25, len(sentences[i]))
-        sent = sentences[i]
-        pred = pred_labels[i][:l]
-        # print([s[0] for s in sent])
-        # print(pred)
-        sent_start_pos = start_pos
-        i = 0
-        while i < l:
-            # print("sent_start_pos", sent_start_pos)
-            # print(sent[i][0])
-            # for each token
-            if pred[i] != 10:
-                attrib = {'id': 'E0', 'start': '1', 'end': '10', 'text': 'Admission', 'modality': 'FACTUAL',
-                          'polarity': 'POS', 'type': 'OCCURRENCE'}
-                attrib['start'] = str(sent_start_pos)
-                attrib['text'] = sent[i][0]
-                j = i+1
-                # print(i, j)
-                # print(pred[i])
-                # print(inv_map[pred[i]])
-                while j<l and inv_map[pred[i]] == inv_map[pred[j]]:
-                    attrib['text'] += " "+sent[j][0]
-                    sent_start_pos += len(sent[j][0]) + 1
-                    j +=1
-                sent_start_pos += len(sent[i][0]) + 1
-                attrib['end'] = str(sent_start_pos)
-
-                attrib['id'] = "E"+str(event_id)
-                event_id +=1
-                attrib['type'] = inv_map[pred[i]]
-                i = j-1
-                t = "<EVENT "
-                for k, v in attrib.items():
-                    t+=k+"="+"\""+v+"\""+" "
-                t += "/>"
-                out.write(t+"\n")
-
-            else:
-                sent_start_pos += len(sent[i][0])+1
-            i += 1
-            # print("end sent_start_pos", sent_start_pos)
-
-        while (i < len(sent)):
-            sent_start_pos += len(sent[i][0]) + 1
-            i +=1
-        start_pos = sent_start_pos
-    out.write("""</TAGS>\n</ClinicalNarrativeTemporalAnnotation>""")
-
-
-    # mydata = ET.tostring(inp_root)
-    # myfile = open("test.xml", "wb")
-    # myfile.write(mydata)
+    genfile()
+    gc.collect()

@@ -45,7 +45,7 @@ def defineBatches(data):
 def padding(Sentences):
     # add padding to char vectors
     word_len = 20
-    sentence_len = 25
+    sentence_len = 100
     # print(Sentences[0])
     for i,sentence in enumerate(Sentences):
         Sentences[i][1] = pad_sequences(Sentences[i][1],word_len,padding='post')
