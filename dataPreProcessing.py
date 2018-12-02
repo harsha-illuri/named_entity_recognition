@@ -4,43 +4,43 @@ import os
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 
-def fetch_minibatch(dataset,batch_indices):
-    start = 0
-    for i in batch_indices:
-        tokens = []
-        char = []
-        labels = []
-        data = dataset[start:i]
-        start = i
-        for dt in data:
-            t,ch,l = dt
-            l = np.expand_dims(l,-1)
-            tokens.append(t)
-            char.append(ch)
-            labels.append(l)
-        yield np.asarray(labels),np.asarray(tokens),np.asarray(char)
+# def fetch_minibatch(dataset,batch_indices):
+#     start = 0
+#     for i in batch_indices:
+#         tokens = []
+#         char = []
+#         labels = []
+#         data = dataset[start:i]
+#         start = i
+#         for dt in data:
+#             t,ch,l = dt
+#             l = np.expand_dims(l,-1)
+#             tokens.append(t)
+#             char.append(ch)
+#             labels.append(l)
+#         yield np.asarray(labels),np.asarray(tokens),np.asarray(char)
 
 
 
-def defineBatches(data):
-    # since the sentences are of multiple sizes, instead of padding
-    # train on batches of data with same length
-
-    #split the dataset in to multiple mini batches
-    l = []
-    for i in data:
-        l.append(len(i[0]))
-    l = set(l)
-    batches = []
-    batch_len = []
-    z = 0
-    for i in l:
-        for batch in data:
-            if len(batch[0]) == i:
-                batches.append(batch)
-                z += 1
-        batch_len.append(z)
-    return batches, batch_len
+# def defineBatches(data):
+#     # since the sentences are of multiple sizes, instead of padding
+#     # train on batches of data with same length
+#
+#     #split the dataset in to multiple mini batches
+#     l = []
+#     for i in data:
+#         l.append(len(i[0]))
+#     l = set(l)
+#     batches = []
+#     batch_len = []
+#     z = 0
+#     for i in l:
+#         for batch in data:
+#             if len(batch[0]) == i:
+#                 batches.append(batch)
+#                 z += 1
+#         batch_len.append(z)
+#     return batches, batch_len
 
 def padding(Sentences):
     # add padding to char vectors
