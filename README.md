@@ -1,5 +1,9 @@
 # Named Entity Recognition in medical prescription text using BiLSTM and charecter embeddings
 
+## Data
+The data for this is from i2b2 2012 challenge.
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3756273/
+
 ## Data Preprocessing
 As for any natural language processing
 task, we need a word embedding. created
