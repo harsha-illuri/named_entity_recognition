@@ -22,6 +22,9 @@ be of uniform length to be able to use it as input to our network. Followed simi
 has been processed to a dataframe and used for prediction.
 
 ## Architecture
+
+![alt text](https://github.com/harsha-illuri/named_entity_recognition/res/model.png)
+      
 The character inputs given are padded
 sequences of characters of length 20. The work inputs are a padded
 sequence of size tokens with max sentence length set to 100. The
@@ -72,11 +75,12 @@ values for our final model
 |30 |0.8083| 0.8647| 0.8325|
 
 The size of the sentences we consider also played an important role in giving better accuracy, although increasing the size is computationally intensive, the accuracy increase justifies it.
+
 | length | Precision | Recall | F1 SCore |
 | :---: | :---: | :---: | :---: |
-|50| 0.715| 0.8557| 0.779|
-|75 |0.811 |0.8546 |0.8322|
-|100 |0.7873| 0.8857| 0.8336|
+| 50 | 0.715 | 0.8557 | 0.779 |
+| 75 | 0.811 |0.8546 |0.8322 |
+| 100 | 0.7873 | 0.8857 | 0.8336 |
 
 ## Areas of improvement
 
