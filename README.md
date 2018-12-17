@@ -23,8 +23,8 @@ has been processed to a dataframe and used for prediction.
 
 ## Architecture
 
-![alt text](https://github.com/harsha-illuri/named_entity_recognition/res/model.png)
-      
+![Alt text](named_entity_recognition/res/model.png?raw=true "Architecture")
+
 The character inputs given are padded
 sequences of characters of length 20. The work inputs are a padded
 sequence of size tokens with max sentence length set to 100. The
