@@ -23,7 +23,7 @@ has been processed to a dataframe and used for prediction.
 
 ## Architecture
 
-![Alt text](named_entity_recognition/res/model.png?raw=true "Architecture")
+![Alt text](res/model.png?raw=true "Architecture")
 
 The character inputs given are padded
 sequences of characters of length 20. The work inputs are a padded
